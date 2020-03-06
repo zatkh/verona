@@ -30,10 +30,10 @@ namespace verona::interpreter
     // skip it. In that case, there are also obviously no iso fields.
     rt::Descriptor::destructor =
       field_count > 0 ? VMObject::destructor_fn : nullptr;
-    rt::Descriptor::trace_possibly_iso =
-      field_count > 0 ? VMObject::trace_fn : nullptr;
+    // In the VM object we always need a finaliser incase it has an iso field.
+    // TODO: Can be optimised if we look at the types of all the fields
     rt::Descriptor::finaliser =
-      finaliser_ip > 0 ? VMObject::finaliser_fn : nullptr;
+      finaliser_ip > 0 ? VMObject::finaliser_fn : VMObject::collect_iso_fields;
   }
 
   VMObject::VMObject(VMObject* region) : parent_(region)
@@ -68,10 +68,31 @@ namespace verona::interpreter
     }
   }
 
-  void VMObject::finaliser_fn(rt::Object* base_object)
+  void VMObject::finaliser_fn(
+    rt::Object* base_object, rt::Object* region, rt::ObjectStack& sub_regions)
   {
     VMObject* object = static_cast<VMObject*>(base_object);
+    const VMDescriptor* descriptor = object->descriptor();
+
     VM::execute_finaliser(object);
+
+    collect_iso_fields(base_object, region, sub_regions);
+  }
+
+  void VMObject::collect_iso_fields(
+    rt::Object* base_object, rt::Object* region, rt::ObjectStack& sub_regions)
+  {
+    // The interpreter doesn't need the region, as the Value type contains the
+    // ISO information in its fat pointers.
+    UNUSED(region);
+
+    VMObject* object = static_cast<VMObject*>(base_object);
+    const VMDescriptor* descriptor = object->descriptor();
+
+    for (size_t i = 0; i < descriptor->field_count; i++)
+    {
+      object->fields[i].add_isos(sub_regions);
+    }
   }
 
   void VMObject::destructor_fn(rt::Object* base_object)

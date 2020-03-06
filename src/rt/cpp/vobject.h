@@ -21,15 +21,6 @@ namespace verona::rt
   // This is better than ignoring methods with the right name but the wrong
   // signature.
   template<class T, class = void>
-  struct has_trace_possibly_iso : std::false_type
-  {};
-  template<class T>
-  struct has_trace_possibly_iso<
-    T,
-    std::void_t<decltype(&T::trace_possibly_iso)>> : std::true_type
-  {};
-
-  template<class T, class = void>
   struct has_notified : std::false_type
   {};
   template<class T>
@@ -71,22 +62,16 @@ namespace verona::rt
       ((T*)o)->trace(st);
     }
 
-    static void gc_trace_possibly_iso(const Object* o, ObjectStack* st)
-    {
-      if constexpr (has_trace_possibly_iso<T>::value)
-        ((T*)o)->trace_possibly_iso(st);
-    }
-
     static void gc_notified(Object* o)
     {
       if constexpr (has_notified<T>::value)
         ((T*)o)->notified(o);
     }
 
-    static void gc_final(Object* o)
+    static void gc_final(Object* o, Object* region, ObjectStack& sub_regions)
     {
       if constexpr (has_finaliser<T>::value)
-        ((T*)o)->finaliser();
+        ((T*)o)->finaliser(region, sub_regions);
     }
 
     static void gc_destructor(Object* o)
@@ -99,7 +84,6 @@ namespace verona::rt
       static constexpr Descriptor desc = {
         sizeof(T),
         gc_trace,
-        has_trace_possibly_iso<T>::value ? gc_trace_possibly_iso : nullptr,
         has_finaliser<T>::value ? gc_final : nullptr,
         has_notified<T>::value ? gc_notified : nullptr,
         has_destructor<T>::value ? gc_destructor : nullptr};
