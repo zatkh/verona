@@ -30,7 +30,7 @@ namespace verona::interpreter
     // skip it. In that case, there are also obviously no iso fields.
     rt::Descriptor::destructor =
       field_count > 0 ? VMObject::destructor_fn : nullptr;
-    // In the VM object we always need a finaliser incase it has an iso field.
+    // In the VM object we always need a finaliser in case it has an iso field.
     // TODO: Can be optimised if we look at the types of all the fields
     rt::Descriptor::finaliser =
       finaliser_ip > 0 ? VMObject::finaliser_fn : VMObject::collect_iso_fields;
@@ -72,7 +72,6 @@ namespace verona::interpreter
     rt::Object* base_object, rt::Object* region, rt::ObjectStack& sub_regions)
   {
     VMObject* object = static_cast<VMObject*>(base_object);
-    const VMDescriptor* descriptor = object->descriptor();
 
     VM::execute_finaliser(object);
 

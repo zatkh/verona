@@ -554,8 +554,8 @@ namespace verona::rt
         (*it)->finalise(o, collect);
       }
 
-      // Destructors can invalidate the objects state, so all finalisers must
-      // run before destructors.
+      // Destructors can invalidate the object's state, so all finalisers must
+      // run before any destructor runs, i.e. two separate passes are required.
       for (auto it = begin<NonTrivial>(); it != end<NonTrivial>(); ++it)
       {
         (*it)->destructor();
